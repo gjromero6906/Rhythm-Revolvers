@@ -8,7 +8,7 @@ local HEIGHT = 600
 function love.load()
     -- Set window size
     love.window.setMode(WIDTH, HEIGHT)
-    love.window.setTitle("LÖVE Game")
+    love.window.setTitle("Rhythm-Revolvers")
     
     -- Initialize game
 end

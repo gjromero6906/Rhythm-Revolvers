@@ -4,10 +4,13 @@
 local States = {
     game = {
         menu = "menu",
-        playing = "playing"
+        playing = "playing",
+        paused = "paused"
     },
     menu = {
         main = "main",
+        nameInput = "nameInput",
+        difficultySelect = "difficultySelect",
         leaderboard = "leaderboard"
     }
 }

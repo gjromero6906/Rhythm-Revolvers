@@ -1,13 +1,13 @@
 -- LÖVE game framework
 -- Documentation: https://love2d.org/wiki/Main_Page
 
-local Target = require("target")
-local Biter = require("biter")
-local Pacing = require("pacing")
-local Menu = require("menu")
-local States = require("states")
-local Player = require("player")
-local Difficulty = require("difficulty")
+local Target = require("src.targets.target")
+local Biter = require("src.targets.biter")
+local Pacing = require("src.systems.pacing")
+local Menu = require("src.menu.menu")
+local States = require("src.menu.states")
+local Player = require("src.player.player")
+local Difficulty = require("src.systems.difficulty")
 
 local WIDTH = 800
 local HEIGHT = 600
@@ -86,7 +86,7 @@ function love.load()
     )
 
     love.graphics.setFont(
-        love.graphics.newFont("consola.ttf", 18)
+        love.graphics.newFont("assets/consola.ttf", 18)
     )
 
     love.keyboard.setKeyRepeat(true)

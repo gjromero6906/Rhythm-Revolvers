@@ -1,7 +1,7 @@
 -- menu.lua
 -- Main menu and leaderboard class for the game
 
-local States = require("states")
+local States = require("src.menu.states")
 
 local Menu = {}
 Menu.__index = Menu

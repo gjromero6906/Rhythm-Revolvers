@@ -1,7 +1,7 @@
 -- player.lua
 -- Player class that handles keyboard input and target matching
 
-local Difficulty = require("difficulty")
+local Difficulty = require("src.systems.difficulty")
 
 local Player = {}
 Player.__index = Player

@@ -18,9 +18,9 @@ function Menu.new(width, height)
     self.selectedDifficulty = "easy"
     self.title = "Rhythm-Revolvers"
     self.subtitle = "Tap the directional target before it disappears"
-    self.font = love.graphics.newFont("consola.ttf", 32)
-    self.optionFont = love.graphics.newFont("consola.ttf", 22)
-    self.infoFont = love.graphics.newFont("consola.ttf", 16)
+    self.font = love.graphics.newFont("assets/consola.ttf", 32)
+    self.optionFont = love.graphics.newFont("assets/consola.ttf", 22)
+    self.infoFont = love.graphics.newFont("assets/consola.ttf", 16)
     self.leaderboard = self:loadLeaderboard()
     self.buttonWidth = 260
     self.buttonHeight = 44

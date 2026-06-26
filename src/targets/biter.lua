@@ -9,7 +9,7 @@ local _fonts = {}
 local function font(size)
     if not _fonts[size] then
         _fonts[size] = love.graphics.newFont(
-            "consola.ttf", size)
+            "assets/consola.ttf", size)
     end
     return _fonts[size]
 end

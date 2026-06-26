@@ -18,9 +18,9 @@ function Menu.new(width, height)
     self.selectedDifficulty = "easy"
     self.title = "Rhythm-Revolvers"
     self.subtitle = "Tap the directional target before it disappears"
-    self.font = love.graphics.newFont(32)
-    self.optionFont = love.graphics.newFont(22)
-    self.infoFont = love.graphics.newFont(16)
+    self.font = love.graphics.newFont("consola.ttf", 32)
+    self.optionFont = love.graphics.newFont("consola.ttf", 22)
+    self.infoFont = love.graphics.newFont("consola.ttf", 16)
     self.leaderboard = self:loadLeaderboard()
     self.buttonWidth = 260
     self.buttonHeight = 44
@@ -196,14 +196,15 @@ function Menu:draw()
         love.graphics.printf("Use arrow keys / mouse to select, Enter to confirm.", 0, self.height - 60, self.width, "center")
     elseif self.state == States.menu.leaderboard then
         love.graphics.setFont(self.optionFont)
-        love.graphics.printf("Top 10 Leaderboard", 0, 180, self.width, "center")
+        love.graphics.printf("Top 10 Leaderboard", 0, 128, self.width, "center")
 
         if #self.leaderboard == 0 then
             love.graphics.setFont(self.infoFont)
-            love.graphics.printf("No scores yet. Play a round to add your score!", 0, 240, self.width, "center")
+            love.graphics.printf("No scores yet. Play a round to add your score!", 0, 168, self.width, "center")
         else
+            love.graphics.setFont(self.infoFont)
             for index, entry in ipairs(self.leaderboard) do
-                local y = 240 + (index - 1) * 32
+                local y = 168 + (index - 1) * 28
                 local entryText = string.format("%d. %s - %d", index, entry.name, entry.score)
                 love.graphics.printf(entryText, 0, y, self.width, "center")
             end

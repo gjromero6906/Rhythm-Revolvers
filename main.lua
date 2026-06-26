@@ -2,6 +2,8 @@
 -- Documentation: https://love2d.org/wiki/Main_Page
 
 local Target = require("target")
+local Biter = require("biter")
+local Pacing = require("pacing")
 local Menu = require("menu")
 local States = require("states")
 local Player = require("player")
@@ -15,11 +17,14 @@ local elapsed = 0
 local roundTime = 60
 
 local isRoundActive = false
+local isGameOver = false
 
 local spawnTimer = 0
 local nextSpawnDelay = 1
 
 local targets = {}
+local activeBiter = nil
+local pacer = nil
 
 local currentState = States.game.menu
 local currentDifficulty = "easy"
@@ -35,11 +40,15 @@ local function resetGame()
     elapsed = 0
 
     isRoundActive = true
+    isGameOver = false
 
     spawnTimer = 0.5
     nextSpawnDelay = 1
 
     targets = {}
+    activeBiter = nil
+
+    pacer:reset()
 end
 
 local function startRound()
@@ -77,7 +86,7 @@ function love.load()
     )
 
     love.graphics.setFont(
-        love.graphics.newFont(18)
+        love.graphics.newFont("consola.ttf", 18)
     )
 
     love.keyboard.setKeyRepeat(true)
@@ -89,6 +98,8 @@ function love.load()
     isRoundActive = false
 
     player = Player.new()
+
+    pacer = Pacing.new()
 
     math.randomseed(os.time())
 end
@@ -105,6 +116,11 @@ function love.update(dt)
     end
 
     if not isRoundActive then
+        return
+    end
+
+    -- Biter expanded: freeze the round until the sequence is resolved
+    if activeBiter and activeBiter.state == "expanded" then
         return
     end
 
@@ -125,31 +141,40 @@ function love.update(dt)
 
         local roll = math.random()
 
-        local targetType = "normal"
+        -- 8% chance to spawn a biter, but only one at a time
+        if not activeBiter and roll < 0.08 then
+            activeBiter =
+                Biter.spawnRandom(
+                    WIDTH,
+                    HEIGHT,
+                    direction,
+                    directions
+                )
+        else
+            local targetType = "normal"
 
-        if roll < 0.2 then
-            targetType = "quicktime"
+            if roll < 0.2 then
+                targetType = "quicktime"
 
-        elseif roll < 0.4 then
-            targetType = "moving"
+            elseif roll < 0.4 then
+                targetType = "moving"
+            end
+
+            local newTarget =
+                Target.spawnRandom(
+                    WIDTH,
+                    HEIGHT,
+                    direction,
+                    targetType
+                )
+
+            newTarget.lifeTime = 10
+
+            table.insert(targets, newTarget)
         end
 
-        local newTarget =
-            Target.spawnRandom(
-                WIDTH,
-                HEIGHT,
-                direction,
-                targetType
-            )
-
-        newTarget.lifeTime = 10
-
-        table.insert(targets, newTarget)
-
         spawnTimer = nextSpawnDelay
-
-        nextSpawnDelay =
-            math.random() * 1.2 + 0.5
+        nextSpawnDelay = pacer:getDelay()
     end
 
     for i = #targets, 1, -1 do
@@ -160,6 +185,21 @@ function love.update(dt)
 
         if not target.isAlive then
             table.remove(targets, i)
+            pacer:recordMiss()
+        end
+    end
+
+    -- Tick the active biter and trigger expansion when its timer runs out
+    if activeBiter then
+        activeBiter:update(dt)
+
+        if activeBiter.needsExpansion then
+            activeBiter.needsExpansion = false
+            activeBiter:expand()
+        end
+
+        if not activeBiter.isAlive then
+            activeBiter = nil
         end
     end
 end
@@ -173,6 +213,10 @@ function love.draw()
 
     for _, target in ipairs(targets) do
         target:draw()
+    end
+
+    if activeBiter and activeBiter.state == "warning" then
+        activeBiter:draw()
     end
 
     love.graphics.setColor(1, 1, 1)
@@ -193,7 +237,7 @@ function love.draw()
     )
 
     love.graphics.print(
-        "Pink = QuickTime | Cyan = Moving",
+        "Pink = QuickTime | Cyan = Moving | Gold = Biter",
         10,
         58
     )
@@ -210,13 +254,30 @@ function love.draw()
 
     elseif not isRoundActive then
 
-        love.graphics.printf(
-            "Round ended. Press R to restart or Escape to return to menu.",
-            0,
-            HEIGHT / 2 - 20,
-            WIDTH,
-            "center"
-        )
+        if isGameOver then
+            love.graphics.setColor(1, 0.2, 0.2)
+            love.graphics.printf(
+                "GAME OVER — Biter sequence failed!\nPress R to retry or Escape for menu.",
+                0,
+                HEIGHT / 2 - 30,
+                WIDTH,
+                "center"
+            )
+        else
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.printf(
+                "Round ended. Press R to restart or Escape to return to menu.",
+                0,
+                HEIGHT / 2 - 20,
+                WIDTH,
+                "center"
+            )
+        end
+    end
+
+    -- Draw expanded biter overlay on top of everything
+    if activeBiter and activeBiter.state == "expanded" then
+        activeBiter:drawExpanded()
     end
 end
 
@@ -312,6 +373,31 @@ function love.keypressed(key)
         return
     end
 
+    -- Biter sequence is active: route all input to it, block everything else
+    if activeBiter and activeBiter.state == "expanded" then
+
+        local direction = player:handleKeyPress(key)
+
+        if direction then
+            local result =
+                activeBiter:handleSequenceInput(direction)
+
+            if result == "success" then
+                activeBiter = nil
+
+            elseif result == "fail" then
+                isGameOver = true
+                isRoundActive = false
+                activeBiter = nil
+                targets = {}
+
+            -- "miss": attempt lost, sequence reset — overlay stays open
+            end
+        end
+
+        return
+    end
+
     if currentState == States.game.paused then
 
         if key == "r" then
@@ -339,42 +425,56 @@ function love.keypressed(key)
 
         if direction then
 
-            for i = #targets, 1, -1 do
+            -- Killing a biter early awards a bonus and skips the sequence
+            if activeBiter
+                and activeBiter.state == "warning"
+                and activeBiter.directionType == direction then
 
-                local target = targets[i]
+                score = score + 300
+                activeBiter = nil
+                pacer:recordHit()
 
-                if target.isAlive
-                    and target.directionType == direction then
+            else
 
-                    if target.targetType == "quicktime" then
+                for i = #targets, 1, -1 do
 
-                        target.currentHits =
-                            target.currentHits + 1
+                    local target = targets[i]
 
-                        if target.currentHits
-                            >= target.requiredHits then
+                    if target.isAlive
+                        and target.directionType == direction then
+
+                        if target.targetType == "quicktime" then
+
+                            target.currentHits =
+                                target.currentHits + 1
+
+                            if target.currentHits
+                                >= target.requiredHits then
+
+                                score =
+                                    score +
+                                    target:getPointValue() * 2
+
+                                target.isAlive = false
+
+                                table.remove(targets, i)
+                                pacer:recordHit()
+                            end
+
+                        else
 
                             score =
                                 score +
-                                target:getPointValue() * 2
+                                target:getPointValue()
 
                             target.isAlive = false
 
                             table.remove(targets, i)
+                            pacer:recordHit()
                         end
 
-                    else
-
-                        score =
-                            score +
-                            target:getPointValue()
-
-                        target.isAlive = false
-
-                        table.remove(targets, i)
+                        break
                     end
-
-                    break
                 end
             end
 
@@ -392,8 +492,10 @@ function love.keypressed(key)
         currentState = States.game.menu
 
         isRoundActive = false
+        isGameOver = false
 
         targets = {}
+        activeBiter = nil
 
         return
 
